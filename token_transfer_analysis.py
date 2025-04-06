@@ -1,4 +1,5 @@
-# Token Transfer Analysis - Complete Python Script
+
+
 
 import requests
 import pandas as pd
@@ -113,6 +114,23 @@ def main():
     df = clean_and_transform(data)
     df.to_csv("clean_token_transfers.csv", index=False)
     print("Data saved to clean_token_transfers.csv")
+
+    print("📊 Key Blockchain Metrics")
+    total_supply = df[df['type'] == 'token_minting']['value'].sum() - df[df['type'] == 'token_burning']['value'].sum()
+    unique_tokens = df['token.symbol'].nunique()
+    total_transactions = len(df)
+    tokens_minted = df[df['type'] == 'token_minting']['value'].sum()
+    tokens_burned = df[df['type'] == 'token_burning']['value'].sum()
+    tokens_transferred = df[df['type'] == 'token_transfer']['value'].sum()
+    total_volume_usd = df['usd_volume'].sum()
+
+    print(f"Total Asset Supply (Minted - Burned): {total_supply:,.4f}")
+    print(f"Number of Unique Tokens: {unique_tokens}")
+    print(f"Number of Transactions: {total_transactions}")
+    print(f"Tokens Minted: {tokens_minted:,.4f}")
+    print(f"Tokens Burned: {tokens_burned:,.4f}")
+    print(f"Tokens Transferred: {tokens_transferred:,.4f}")
+    print(f"Total Transaction Volume (USD): ${total_volume_usd:,.2f}")
 
     print("Generating charts...")
     save_charts(df)
