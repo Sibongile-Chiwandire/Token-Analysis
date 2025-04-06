@@ -1,4 +1,3 @@
-
 # Token Transfer Analysis - Complete Python Script
 
 import requests
@@ -49,23 +48,7 @@ def save_charts(df):
     plt.savefig("daily_volume_chart.png")
     plt.close()
 
-    # Top 10 senders
-    top_senders = df.groupby('from.hash')['value'].sum().sort_values(ascending=False).head(10)
-    top_senders.plot(kind='bar', title='Top 10 Token Senders', figsize=(10, 6))
-    plt.ylabel("Tokens Sent")
-    plt.tight_layout()
-    plt.savefig("top_senders_chart.png")
-    plt.close()
-
-    # Top 10 receivers
-    top_receivers = df.groupby('to.hash')['value'].sum().sort_values(ascending=False).head(10)
-    top_receivers.plot(kind='bar', title='Top 10 Token Receivers', color='green', figsize=(10, 6))
-    plt.ylabel("Tokens Received")
-    plt.tight_layout()
-    plt.savefig("top_receivers_chart.png")
-    plt.close()
-
-    # Mint and burn over time
+    # Minting and burning over time
     mint_df = df[df['type'] == 'token_minting'].groupby('date')['value'].sum()
     burn_df = df[df['type'] == 'token_burning'].groupby('date')['value'].sum()
     mint_df.plot(label='Minted', color='blue', figsize=(12, 6))
@@ -78,14 +61,59 @@ def save_charts(df):
     plt.savefig("mint_burn_chart.png")
     plt.close()
 
+    # Total supply over time
+    mint_burn = df.pivot_table(index='date', columns='type', values='value', aggfunc='sum').fillna(0)
+    mint_burn['total_supply'] = mint_burn.get('token_minting', 0).cumsum() - mint_burn.get('token_burning', 0).cumsum()
+    mint_burn['total_supply'].plot(figsize=(12, 6), title="Total Supply of Tokens Over Time")
+    plt.ylabel("Token Supply")
+    plt.xlabel("Date")
+    plt.tight_layout()
+    plt.savefig("supply_over_time_chart.png")
+    plt.close()
+
+    # Top 10 holders (minted - burned + received - sent)
+    received = df.groupby('to.hash')['value'].sum()
+    sent = df.groupby('from.hash')['value'].sum()
+    minted = df[df['type'] == 'token_minting'].groupby('to.hash')['value'].sum()
+    burned = df[df['type'] == 'token_burning'].groupby('from.hash')['value'].sum()
+
+    address_df = pd.DataFrame({'received': received, 'sent': sent}).fillna(0)
+    address_df['minted'] = minted
+    address_df['burned'] = burned
+    address_df.fillna(0, inplace=True)
+    address_df['net'] = address_df['minted'] - address_df['burned'] + address_df['received'] - address_df['sent']
+    address_df['net'].sort_values(ascending=False).head(10).plot(kind='bar', title='Top 10 Token Holders', figsize=(10, 6))
+    plt.ylabel("Net Tokens Held")
+    plt.tight_layout()
+    plt.savefig("top_holders_chart.png")
+    plt.close()
+
+    # Top 10 senders
+    top_senders = address_df['sent'].sort_values(ascending=False).head(10)
+    top_senders.plot(kind='bar', title='Top 10 Token Senders', figsize=(10, 6))
+    plt.ylabel("Tokens Sent")
+    plt.tight_layout()
+    plt.savefig("top_senders_chart.png")
+    plt.close()
+
+    # Top 10 receivers
+    top_receivers = address_df['received'].sort_values(ascending=False).head(10)
+    top_receivers.plot(kind='bar', title='Top 10 Token Receivers', color='green', figsize=(10, 6))
+    plt.ylabel("Tokens Received")
+    plt.tight_layout()
+    plt.savefig("top_receivers_chart.png")
+    plt.close()
+
 def main():
     print("Fetching data from API...")
     data = fetch_all_pages()
     print(f"Fetched {len(data)} records.")
+
     print("Cleaning and transforming data...")
     df = clean_and_transform(data)
     df.to_csv("clean_token_transfers.csv", index=False)
     print("Data saved to clean_token_transfers.csv")
+
     print("Generating charts...")
     save_charts(df)
     print("Charts saved. Analysis complete.")
